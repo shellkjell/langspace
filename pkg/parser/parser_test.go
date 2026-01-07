@@ -207,7 +207,7 @@ agent "reviewer" {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("Parser.Parse() error = %v, wantError %v", err, tt.wantError)
@@ -257,7 +257,7 @@ func TestParser_Parse_LegacySyntax(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("Parser.Parse() error = %v, wantError %v", err, tt.wantError)
@@ -314,7 +314,7 @@ func TestParser_Parse_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			_, _, err := p.Parse()
+			_, err := p.Parse()
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("Parser.Parse() error = %v, wantError %v", err, tt.wantError)
@@ -353,7 +353,7 @@ Review the following code for bugs and style issues.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("Parser.Parse() error = %v, wantError %v", err, tt.wantError)
@@ -674,7 +674,7 @@ script "s2" { language: "bash" }`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("Parser.Parse() error = %v, wantError %v", err, tt.wantError)
@@ -698,7 +698,7 @@ func BenchmarkParser_Parse_BlockSyntax(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(input)
-		_, _, _ = p.Parse()
+		_, _ = p.Parse()
 	}
 }
 
@@ -714,7 +714,7 @@ func BenchmarkParser_Parse_Large(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(input)
-		_, _, _ = p.Parse()
+		_, _ = p.Parse()
 	}
 }
 
@@ -816,7 +816,7 @@ func TestParser_TypedParameters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 			if err != nil {
 				t.Fatalf("Parser.Parse() error = %v", err)
 			}
@@ -898,7 +898,7 @@ func TestParser_NestedBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 			if err != nil {
 				t.Fatalf("Parser.Parse() error = %v", err)
 			}
@@ -963,7 +963,7 @@ func TestParser_PropertyAccess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := New(tt.input)
-			got, _, err := p.Parse()
+			got, err := p.Parse()
 			if err != nil {
 				t.Fatalf("Parser.Parse() error = %v", err)
 			}

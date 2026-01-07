@@ -166,16 +166,17 @@ func New() *Workspace {
 
 // WorkspaceStats contains statistics about the workspace
 type WorkspaceStats struct {
-	TotalEntities      int
-	FileEntities       int
-	AgentEntities      int
-	ToolEntities       int
-	IntentEntities     int
-	PipelineEntities   int
-	ScriptEntities     int
-	TotalRelationships int
-	TotalHooks         int
-	HasValidator       bool
+	TotalEntities        int
+	FileEntities         int
+	AgentEntities        int
+	ToolEntities         int
+	IntentEntities       int
+	PipelineEntities     int
+	ScriptEntities       int
+	MDAPPipelineEntities int
+	TotalRelationships   int
+	TotalHooks           int
+	HasValidator         bool
 }
 
 // Stat returns statistics about the workspace
@@ -210,6 +211,8 @@ func (w *Workspace) Stat() WorkspaceStats {
 			stats.PipelineEntities++
 		case "script":
 			stats.ScriptEntities++
+		case "mdap_pipeline":
+			stats.MDAPPipelineEntities++
 		}
 	}
 

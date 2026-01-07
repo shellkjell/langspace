@@ -200,6 +200,8 @@ func (r *Runtime) Execute(ctx context.Context, entity ast.Entity, opts ...Execut
 		return r.executePipeline(execCtx, entity)
 	case "script":
 		return r.executeScript(execCtx, entity)
+	case "mdap_pipeline":
+		return r.executeMDAPPipeline(execCtx, entity)
 	default:
 		return nil, fmt.Errorf("cannot execute entity of type %q", entity.Type())
 	}

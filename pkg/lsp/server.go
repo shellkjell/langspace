@@ -136,7 +136,7 @@ func (s *Server) reindex() error {
 	newWS := workspace.New()
 	for uri, content := range s.files {
 		p := parser.New(content)
-		entities, _, err := p.Parse()
+		entities, err := p.Parse()
 		if err != nil {
 			log.Printf("indexing error for %s: %v", uri, err)
 			continue

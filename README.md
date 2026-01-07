@@ -36,6 +36,12 @@ intent "review-changes" {
 go get github.com/shellkjell/langspace
 ```
 
+## Getting Started
+
+1. **Define your workflow**: Create a `.ls` file defining agents, tools, and pipelines.
+2. **Execute**: Run `langspace run -file workflow.ls -name my-intent`.
+3. **Advanced Reliability**: For complex, long-horizon tasks requiring zero-error execution, use the [Advanced: MDAP Pipelines](#advanced-mdap-pipelines) mode.
+
 ## Language Syntax
 
 LangSpace uses block-based declarations with key-value properties and supports modular imports for large projects.
@@ -222,6 +228,44 @@ config {
 }
 ```
 
+### Advanced: MDAP Pipelines
+
+MDAP (Massively Decomposed Agentic Processes) is an **advanced execution mode** that enables reliable execution of long-horizon tasks through voting and rejection sampling. Based on the MAKER framework from "Solving a Million-Step LLM Task with Zero Errors", it ensures near-zero error rates by breaking tasks into atomic microsteps.
+
+```langspace
+mdap_pipeline "solve-hanoi" {
+  strategy: file("hanoi-strategy")
+
+  mdap_config {
+    voting_strategy: "first-to-ahead-by-k"
+    k: 3
+    parallel_samples: 3
+    temperature_first: 0.0
+    temperature_subsequent: 0.1
+    max_output_tokens: 500
+    require_format: true
+  }
+
+  total_steps: 31
+
+  microstep "move" {
+    use: agent("solver")
+    context: {
+      state: $current_state
+      previous_move: $last_action
+    }
+  }
+}
+```
+
+**Key MDAP Features:**
+- **Maximal Decomposition**: Each microstep handles exactly ONE atomic action
+- **First-to-ahead-by-k Voting**: Multiple samples vote until k-margin consensus
+- **Red-Flagging**: Reject suspicious responses (too long, wrong format)
+- **Checkpointing**: Automatic state saves for recovery
+
+See [examples/advanced/09-tower-of-hanoi-mdap.ls](examples/advanced/09-tower-of-hanoi-mdap.ls) for a complete example.
+
 ### Comments
 
 Single-line comments start with `#`:
@@ -306,6 +350,7 @@ code --install-extension vscode-langspace/langspace-0.1.0.vsix
 - **Direct Execution**: Built-in runtime with Anthropic/OpenAI/Ollama support
 - **Tool Orchestration**: Auto-management of tool loops and MCP server integration
 - **Scripting**: Sandboxed Python/Shell execution for context-efficient actions
+- **MDAP Pipelines**: Massively Decomposed Agentic Processes with voting and rejection sampling
 - **Compilation**: Python/LangGraph target generation via `langspace compile`
 - **Automation**: Trigger engine for scheduled and event-driven workflows
 - **Workspace**: Full persistence, snapshoting, and versioning system

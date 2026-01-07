@@ -14,6 +14,9 @@ This folder contains comprehensive, production-ready examples that demonstrate t
 | [06-content-generation-studio](06-content-generation-studio.ls) | Multi-format content creation with quality assurance | Parallel generation, A/B testing, publishing |
 | [07-autonomous-coding-agent](07-autonomous-coding-agent.ls) | Self-improving coding agent with test-driven development | TDD, self-debugging, git integration |
 | [08-enterprise-workflow-orchestration](08-enterprise-workflow-orchestration.ls) | Complex business process automation with approvals | Human-in-loop, compliance, audit trails |
+| [09-tower-of-hanoi-mdap](09-tower-of-hanoi-mdap.ls) | Advanced execution mode for Tower of Hanoi (5 disks, 31 steps) | Voting, rejection sampling, checkpointing |
+| [10-massive-refactoring-mdap](10-massive-refactoring-mdap.ls) | Large-scale API migration across monorepos | Consensus-based refactoring, rejection sampling |
+| [11-security-audit-mdap](11-security-audit-mdap.ls) | Global security audit for large codebases | High-precision vulnerability scanning, noise reduction |
 
 ## Prerequisites
 
@@ -77,6 +80,12 @@ Triggers enable:
 - Real-time response to external events
 - Scheduled batch processing
 - Integration with existing systems
+
+### 5. Advanced Execution: MDAP
+The MDAP (Massively Decomposed Agentic Processes) pattern enables:
+- Near-zero error rates on long-horizon tasks
+- Consensus through voting (MAKER framework)
+- Quality control via rejection sampling (Red-Flagging)
 
 ## Best Practices
 

@@ -194,8 +194,8 @@ func (p *Parser) parseTopLevel() (ast.Entity, *ParseError) {
 	// Check if this is block syntax (name followed by {) or legacy syntax
 	nameTok := p.current()
 
-	// Config doesn't have a name
-	if entityType == "config" {
+	// Config and mdap_config don't have a name
+	if entityType == "config" || entityType == "mdap_config" {
 		return p.parseBlockEntity(entityType, "", tok.Line, tok.Column)
 	}
 
@@ -321,6 +321,19 @@ func (p *Parser) parseProperty(entity ast.Entity) *ParseError {
 			}
 		}
 
+		// Handle microsteps in MDAP pipelines
+		if mdapPipeline, ok := entity.(*ast.MDAPPipelineEntity); ok {
+			if microstep, ok := nestedValue.Entity.(*ast.MicrostepEntity); ok {
+				mdapPipeline.Microsteps = append(mdapPipeline.Microsteps, microstep)
+				return nil
+			}
+			// Also handle mdap_config
+			if mdapConfig, ok := nestedValue.Entity.(*ast.MDAPConfigEntity); ok {
+				mdapPipeline.Config = mdapConfig
+				return nil
+			}
+		}
+
 		// For other cases, store as property
 		entity.SetProperty(key, nestedValue)
 		return nil
@@ -344,7 +357,7 @@ func (p *Parser) parseProperty(entity ast.Entity) *ParseError {
 // isNestedEntityKeyword checks if an identifier is a keyword that can start a nested entity block
 func (p *Parser) isNestedEntityKeyword(name string) bool {
 	switch name {
-	case "step", "parallel", "handler", "on_success", "on_failure", "on_error", "on_complete", "config":
+	case "step", "parallel", "handler", "on_success", "on_failure", "on_error", "on_complete", "config", "microstep", "mdap_config":
 		return true
 	}
 	return false

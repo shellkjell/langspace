@@ -15,7 +15,7 @@ LangSpace prioritizes "Script-first" agent actions to minimize context window bl
 **Core packages:**
 - [pkg/tokenizer](../pkg/tokenizer/tokenizer.go) - Lexical analysis, produces tokens with line/column tracking
 - [pkg/parser](../pkg/parser/parser.go) - Recursive descent parser, builds AST from tokens
-- [pkg/ast](../pkg/ast/entity.go) - Entity types (`agent`, `file`, `tool`, `intent`, `pipeline`, `script`, etc.)
+- [pkg/ast](../pkg/ast/entity.go) - Entity types (`agent`, `file`, `tool`, `intent`, `pipeline`, `script`, `mdap_pipeline`, `microstep`, etc.)
 - [pkg/workspace](../pkg/workspace/workspace.go) - Entity storage with hooks, events, relationships, and snapshots
 - [pkg/validator](../pkg/validator/validator.go) - Type-specific validation rules
 - [pkg/runtime](../pkg/runtime/runtime.go) - LLM integration and workflow execution (Intent/Pipeline)
@@ -133,6 +133,18 @@ script "db-update" {
   capabilities: [database]
 }
 
+# MDAP Pipelines - reliable long-horizon tasks
+mdap_pipeline "solve-hanoi" {
+  strategy: file("strategy")
+  mdap_config {
+    voting_strategy: "first-to-ahead-by-k"
+    k: 3
+  }
+  microstep "move" {
+    use: agent("solver")
+  }
+}
+
 # References: agent("x"), file("y"), step("z").output
 # Variables: $input, $code
 # Property access: params.location, config.defaults.timeout
@@ -150,6 +162,9 @@ script "db-update" {
 | `trigger` | `event` OR `schedule` |
 | `mcp` | `command` |
 | `script` | `language`, `code` OR `path` |
+| `mdap_pipeline` | `strategy` |
+| `microstep` | `use` (agent reference) |
+| `mdap_config` | (no required properties) |
 
 ## Code Style
 
@@ -161,9 +176,8 @@ script "db-update" {
 
 ## Current Limitations (Not Yet Implemented)
 
-- Method calls on objects: `git.staged_files()`
-- Comparison expressions: `env("X") == "true"`
-- Control flow: `branch`, `loop`, `break_if`
-- LLM execution runtime (foundations in [pkg/runtime](../pkg/runtime/))
+- TypeScript compilation target (Python works)
+- Cloud-hosted execution
+- Advanced debugging visualization
 
 See [examples/](../examples/) for syntax demos and [ROADMAP.md](../ROADMAP.md) for planned features.

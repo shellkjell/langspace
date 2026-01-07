@@ -44,7 +44,7 @@ func (l *Loader) Load(filePath string) error {
 	l.baseDir = filepath.Dir(absPath)
 
 	p := parser.New(string(content))
-	entities, imports, err := p.Parse()
+	entities, err := p.Parse()
 	if err != nil {
 		return fmt.Errorf("parse error in %s: %w", absPath, err)
 	}
@@ -56,17 +56,8 @@ func (l *Loader) Load(filePath string) error {
 		}
 	}
 
-	// Recursively load imports
-	for _, imp := range imports {
-		impPath := imp.Path
-		if !filepath.IsAbs(impPath) {
-			impPath = filepath.Join(l.baseDir, impPath)
-		}
-
-		if err := l.Load(impPath); err != nil {
-			return err
-		}
-	}
+	// TODO: Implement import resolution when import syntax is added
+	// Currently imports are not supported by the parser
 
 	return nil
 }

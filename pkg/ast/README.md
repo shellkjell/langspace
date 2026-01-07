@@ -18,6 +18,9 @@ The AST package defines the following key components:
 - `ConfigEntity`: Represents global configuration
 - `MCPEntity`: Represents MCP server connections
 - `ScriptEntity`: Represents code-first agent actions
+- `MicrostepEntity`: Represents atomic steps in MDAP pipelines
+- `MDAPConfigEntity`: Represents MDAP execution configuration
+- `MDAPPipelineEntity`: Represents MDAP pipelines with voting and rejection sampling
 
 ## Usage
 
@@ -127,6 +130,54 @@ print(f"Updated user {user_id}")
   - `command`: Command to spawn the server
   - `args`: Command arguments
   - `url`: SSE endpoint URL
+
+### Microstep Entity
+- **Purpose**: Represents atomic steps in MDAP (Massively Decomposed Agentic Processes) pipelines
+- **Properties**:
+  - `use`: Agent reference for execution
+  - `context`: Minimal context for this step (state, strategy, previous_action)
+  - `output_schema`: Expected output format for validation
+  - `red_flags`: Conditions that trigger rejection sampling
+
+### MDAP Config Entity
+- **Purpose**: Configures MDAP execution parameters for voting and rejection sampling
+- **Properties**:
+  - `voting_strategy`: "first-to-ahead-by-k" (default) or "majority"
+  - `k`: Vote margin required for consensus (default: 3)
+  - `parallel_samples`: Number of parallel samples per round (default: k)
+  - `temperature_first`: Temperature for first sample (default: 0.0)
+  - `temperature_subsequent`: Temperature for subsequent samples (default: 0.1)
+  - `max_output_tokens`: Red-flag threshold for response length
+  - `require_format`: Whether to reject format errors (default: true)
+  - `checkpoint_interval`: Steps between checkpoints (default: 1000)
+
+### MDAP Pipeline Entity
+- **Purpose**: Orchestrates massive parallel step execution with voting for reliable long-horizon tasks
+- **Properties**:
+  - `strategy`: Fixed strategy provided to all microsteps
+  - `total_steps`: Total number of steps in the pipeline
+  - `input`: Initial state for the pipeline
+- **Additional**: Contains MDAPConfigEntity and list of MicrostepEntity
+
+**Why MDAP?** MDAP solves the reliability problem for long-horizon tasks. Based on the MAKER framework from "Solving a Million-Step LLM Task with Zero Errors", it uses voting and rejection sampling to ensure each step is executed correctly before proceeding.
+
+```go
+// Create an MDAP pipeline
+pipeline := ast.NewMDAPPipelineEntity("solve-hanoi")
+pipeline.SetProperty("strategy", ast.StringValue{Value: "recursive tower of hanoi"})
+pipeline.SetProperty("total_steps", ast.NumberValue{Value: 31})
+
+// Add config
+config := ast.NewMDAPConfigEntity()
+config.SetProperty("k", ast.NumberValue{Value: 3})
+config.SetProperty("voting_strategy", ast.StringValue{Value: "first-to-ahead-by-k"})
+pipeline.Config = config
+
+// Add microstep
+microstep := ast.NewMicrostepEntity("move")
+microstep.SetProperty("use", ast.ReferenceValue{Type: "agent", Name: "solver"})
+pipeline.AddMicrostep(microstep)
+```
 
 ### Config Entity
 - **Purpose**: Represents global configuration

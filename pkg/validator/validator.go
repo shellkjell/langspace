@@ -99,6 +99,12 @@ func (v *Validator) ValidateEntity(entity ast.Entity) error {
 		return v.validateMCPEntity(entity)
 	case "script":
 		return v.validateScriptEntity(entity)
+	case "microstep":
+		return v.validateMicrostepEntity(entity)
+	case "mdap_config":
+		return v.validateMDAPConfigEntity(entity)
+	case "mdap_pipeline":
+		return v.validateMDAPPipelineEntity(entity)
 	default:
 		return fmt.Errorf("unknown entity type: %s", entity.Type())
 	}
@@ -254,6 +260,67 @@ func (v *Validator) validateScriptEntity(entity ast.Entity) error {
 	_, hasPath := entity.GetProperty("path")
 	if !hasCode && !hasPath {
 		return fmt.Errorf("script entity must have 'code' or 'path' property")
+	}
+
+	return nil
+}
+
+// validateMicrostepEntity validates a microstep entity for MDAP pipelines.
+// Microsteps require minimal context and output schema for reliable atomic execution.
+func (v *Validator) validateMicrostepEntity(entity ast.Entity) error {
+	if entity.Name() == "" {
+		return fmt.Errorf("microstep entity must have a name")
+	}
+
+	// Microstep must have an agent to use
+	_, hasUse := entity.GetProperty("use")
+	if !hasUse {
+		return fmt.Errorf("microstep entity must have 'use' property referencing an agent")
+	}
+
+	return nil
+}
+
+// validateMDAPConfigEntity validates an MDAP configuration entity.
+// MDAP config controls voting, sampling, and red-flagging behavior.
+func (v *Validator) validateMDAPConfigEntity(entity ast.Entity) error {
+	// Config entities don't require a name
+
+	// Validate k if provided (must be >= 1)
+	if kProp, hasK := entity.GetProperty("k"); hasK {
+		if kVal, ok := kProp.(ast.NumberValue); ok {
+			if kVal.Value < 1 {
+				return fmt.Errorf("mdap_config 'k' must be >= 1, got %v", kVal.Value)
+			}
+		}
+	}
+
+	// Validate voting_strategy if provided
+	if strategyProp, hasStrategy := entity.GetProperty("voting_strategy"); hasStrategy {
+		if strategyVal, ok := strategyProp.(ast.StringValue); ok {
+			switch strategyVal.Value {
+			case "first-to-ahead-by-k", "majority":
+				// Valid strategies
+			default:
+				return fmt.Errorf("mdap_config 'voting_strategy' must be 'first-to-ahead-by-k' or 'majority', got %q", strategyVal.Value)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateMDAPPipelineEntity validates an MDAP pipeline entity.
+// MDAP pipelines coordinate massive parallel step execution with voting.
+func (v *Validator) validateMDAPPipelineEntity(entity ast.Entity) error {
+	if entity.Name() == "" {
+		return fmt.Errorf("mdap_pipeline entity must have a name")
+	}
+
+	// MDAP pipeline should have a strategy for agents to follow
+	_, hasStrategy := entity.GetProperty("strategy")
+	if !hasStrategy {
+		return fmt.Errorf("mdap_pipeline entity should have 'strategy' property defining the solving approach")
 	}
 
 	return nil

@@ -369,6 +369,7 @@ func printStats(w io.Writer, stats workspace.WorkspaceStats, entityCount int) {
 	fmt.Fprintf(w, "  Number of intent entities: %d\n", stats.IntentEntities)
 	fmt.Fprintf(w, "  Number of pipeline entities: %d\n", stats.PipelineEntities)
 	fmt.Fprintf(w, "  Number of script entities: %d\n", stats.ScriptEntities)
+	fmt.Fprintf(w, "  Number of MDAP pipeline entities: %d\n", stats.MDAPPipelineEntities)
 	fmt.Fprintf(w, "  Number of relationships: %d\n", stats.TotalRelationships)
 	fmt.Fprintf(w, "  Number of hooks: %d\n", stats.TotalHooks)
 	fmt.Fprintf(w, "Successfully processed entities: %d\n", entityCount)

@@ -32,9 +32,8 @@ This document outlines the planned development roadmap for the LangSpace project
 - [x] Trigger engine for automated workflows
 - [x] LangSpace CLI with `serve` command
 - [x] Model Context Protocol (MCP) client interface
-- [x] Modular import mechanism and recursive Loader
-- [x] Language Server Protocol (LSP) for intelligent IDE features
-- [x] Go to Definition across multiple files
+- [x] Advanced Execution: MDAP (Massively Decomposed Agentic Processes) for high-reliability tasks
+- [x] First-to-ahead-by-k voting and rejection sampling for reliable long-horizon tasks
 
 
 ### Known Issues / Limitations
@@ -43,6 +42,7 @@ This document outlines the planned development roadmap for the LangSpace project
 - [x] Advanced expression syntax supported — Method calls (`git.func()`), comparisons (`x == y`), control flow (`branch`, `loop`)
 - [ ] Some PRD features still pending (triggers, automation, execution)
 - [x] All 9 examples parse fully (01-09); advanced expressions supported
+- [x] MDAP Tower of Hanoi example (5-disk problem with voting)
 - [x] Performance claims verified with current benchmarks
 - [x] Entity relationships implemented
 
@@ -83,7 +83,6 @@ This document outlines the planned development roadmap for the LangSpace project
 - [ ] Implement syntax highlighting
 - [ ] Add source map support
 - [x] Improve error recovery
-- [x] **Modular Imports** — Recursive loading and multi-file project support
 - [ ] Support for custom entity types
 - [x] ~~Handle typed parameters~~ — Supports `query: string required "desc"` and `type: enum ["a", "b"]`
 - [x] **Expression parser** — Method calls, comparisons, control flow (branch, loop, break_if)
@@ -125,8 +124,8 @@ This document outlines the planned development roadmap for the LangSpace project
 - [x] Entity transformation pipeline
 
 ### 2. Developer Experience
-- [x] CLI tools for entity management (multi-file loader)
-- [x] Interactive debugging support (Go to Definition via LSP)
+- [ ] CLI tools for entity management
+- [ ] Interactive debugging support
 - [ ] Documentation generator
 - [ ] Entity visualization tools
 - [ ] Integration examples

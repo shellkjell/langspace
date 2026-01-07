@@ -387,23 +387,98 @@ func NewScriptEntity(name string) *ScriptEntity {
 	return &ScriptEntity{BaseEntity: NewBaseEntity("script", name)}
 }
 
+// MicrostepEntity represents an atomic step in an MDAP (Massively Decomposed
+// Agentic Process). Unlike regular steps, microsteps are designed for
+// million-step tasks with minimal context per step.
+//
+// Key properties:
+//   - context: Minimal context for this step (state, strategy, previous_action)
+//   - output_schema: Expected output format for validation
+//   - red_flags: Conditions that trigger rejection sampling
+//   - depends_on: Explicit dependencies for DAG ordering
+//
+// MDAP ensures reliability through:
+//   - Maximal decomposition (one atomic action per step)
+//   - First-to-ahead-by-k voting for error correction
+//   - Red-flagging to reject suspicious outputs
+type MicrostepEntity struct {
+	*BaseEntity
+}
+
+// NewMicrostepEntity creates a new microstep entity
+func NewMicrostepEntity(name string) *MicrostepEntity {
+	return &MicrostepEntity{BaseEntity: NewBaseEntity("microstep", name)}
+}
+
+// MDAPConfigEntity configures MDAP execution parameters for a pipeline.
+// This enables the MAKER-style voting and rejection sampling mechanisms.
+//
+// Key properties:
+//   - voting_strategy: "first-to-ahead-by-k" (default) or "majority"
+//   - k: Vote margin required for consensus (default: 3)
+//   - parallel_samples: Number of parallel samples per round (default: k)
+//   - temperature_first: Temperature for first sample (default: 0.0)
+//   - temperature_subsequent: Temperature for subsequent samples (default: 0.1)
+//   - max_output_tokens: Red-flag threshold for response length
+//   - require_format: Whether to reject format errors (default: true)
+//   - checkpoint_interval: Steps between checkpoints (default: 1000)
+type MDAPConfigEntity struct {
+	*BaseEntity
+}
+
+// NewMDAPConfigEntity creates a new MDAP configuration entity
+func NewMDAPConfigEntity() *MDAPConfigEntity {
+	return &MDAPConfigEntity{BaseEntity: NewBaseEntity("mdap_config", "")}
+}
+
+// MDAPPipelineEntity represents a pipeline designed for MDAP execution.
+// It extends PipelineEntity with MDAP-specific configuration and step handling.
+//
+// Key properties:
+//   - mode: "mdap" to enable MDAP execution
+//   - mdap_config: Configuration for voting, sampling, and red-flagging
+//   - strategy: Fixed strategy provided to all microsteps
+//   - state_schema: Schema for the state passed between microsteps
+//   - generate_steps: Optional function to dynamically generate steps
+type MDAPPipelineEntity struct {
+	*BaseEntity
+	Microsteps []*MicrostepEntity
+	Config     *MDAPConfigEntity
+}
+
+// NewMDAPPipelineEntity creates a new MDAP pipeline entity
+func NewMDAPPipelineEntity(name string) *MDAPPipelineEntity {
+	return &MDAPPipelineEntity{
+		BaseEntity: NewBaseEntity("mdap_pipeline", name),
+		Microsteps: make([]*MicrostepEntity, 0),
+	}
+}
+
+// AddMicrostep adds a microstep to the MDAP pipeline
+func (p *MDAPPipelineEntity) AddMicrostep(step *MicrostepEntity) {
+	p.Microsteps = append(p.Microsteps, step)
+}
+
 // EntityFactory is a function that creates a new entity of a specific type
 type EntityFactory func(name string) Entity
 
 // entityRegistry holds registered entity types and their factories
 var entityRegistry = map[string]EntityFactory{
-	"file":     func(name string) Entity { return NewFileEntity(name) },
-	"agent":    func(name string) Entity { return NewAgentEntity(name) },
-	"tool":     func(name string) Entity { return NewToolEntity(name) },
-	"intent":   func(name string) Entity { return NewIntentEntity(name) },
-	"pipeline": func(name string) Entity { return NewPipelineEntity(name) },
-	"parallel": func(name string) Entity { return NewParallelEntity(name) },
-	"step":     func(name string) Entity { return NewStepEntity(name) },
-	"trigger":  func(name string) Entity { return NewTriggerEntity(name) },
-	"config":   func(name string) Entity { return NewConfigEntity() },
-	"mcp":      func(name string) Entity { return NewMCPEntity(name) },
-	"script":   func(name string) Entity { return NewScriptEntity(name) },
-	"env":      func(name string) Entity { return NewBaseEntity("env", name) },
+	"file":          func(name string) Entity { return NewFileEntity(name) },
+	"agent":         func(name string) Entity { return NewAgentEntity(name) },
+	"tool":          func(name string) Entity { return NewToolEntity(name) },
+	"intent":        func(name string) Entity { return NewIntentEntity(name) },
+	"pipeline":      func(name string) Entity { return NewPipelineEntity(name) },
+	"parallel":      func(name string) Entity { return NewParallelEntity(name) },
+	"step":          func(name string) Entity { return NewStepEntity(name) },
+	"trigger":       func(name string) Entity { return NewTriggerEntity(name) },
+	"config":        func(name string) Entity { return NewConfigEntity() },
+	"mcp":           func(name string) Entity { return NewMCPEntity(name) },
+	"script":        func(name string) Entity { return NewScriptEntity(name) },
+	"env":           func(name string) Entity { return NewBaseEntity("env", name) },
+	"microstep":     func(name string) Entity { return NewMicrostepEntity(name) },
+	"mdap_config":   func(name string) Entity { return NewMDAPConfigEntity() },
+	"mdap_pipeline": func(name string) Entity { return NewMDAPPipelineEntity(name) },
 }
 
 // RegisterEntityType registers a new entity type with its factory function.
