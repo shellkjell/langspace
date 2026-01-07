@@ -85,68 +85,68 @@ func (r *Runtime) executeIntent(ctx *ExecutionContext, entity ast.Entity) (*Exec
 			Tools:        tools,
 		}
 
-		// Execute the LLM call
-		var resp *CompletionResponse
-		var lastResp *CompletionResponse
-		if ctx.Handler != nil && r.config.EnableStreaming {
-			resp, err = provider.CompleteStream(ctx.Context, req, ctx.Handler)
-		} else {
-			resp, err = provider.Complete(ctx.Context, req)
-		}
-
-		if err != nil {
-			result.Error = fmt.Errorf("LLM request failed: %w", err)
-			ctx.EmitProgress(ProgressEvent{
-				Type:    ProgressTypeError,
-				Message: err.Error(),
-			})
-			return result, result.Error
-		}
-
-		lastResp = resp
-		// Update token usage
-		result.TokensUsed.Add(resp.Usage)
-
-		// Add assistant message to history
-		assistantMsg := Message{
-			Role:      RoleAssistant,
-			Content:   resp.Content,
-			ToolCalls: resp.ToolCalls,
-		}
-		messages = append(messages, assistantMsg)
-
-		// If no tool calls, we're done
-		if len(resp.ToolCalls) == 0 || resp.FinishReason != FinishReasonToolUse {
-			result.Output = resp.Content
-			result.Metadata["finish_reason"] = string(resp.FinishReason)
-			break
-		}
-
-		// Execute tool calls
-		for _, tc := range resp.ToolCalls {
-			ctx.EmitProgress(ProgressEvent{
-				Type:    ProgressTypeStep,
-				Message: fmt.Sprintf("Executing tool: %s", tc.Name),
-				Metadata: map[string]string{
-					"tool": tc.Name,
-				},
-			})
-
-			toolResult, err := r.executeToolCall(ctx, tc, resolver)
-			if err != nil {
-				// We report the error back to the LLM so it can try to fix it
-				toolResult = fmt.Sprintf("Error: %v", err)
-			}
-
-			// Add tool result to history
-			messages = append(messages, Message{
-				Role:       RoleTool,
-				Content:    toString(toolResult),
-				ToolCallID: tc.ID,
-			})
-		}
-		_ = lastResp // Suppress unused warning, kept for future metadata access
+	// Execute the LLM call
+	var resp *CompletionResponse
+	var lastResp *CompletionResponse
+	if ctx.Handler != nil && r.config.EnableStreaming {
+		resp, err = provider.CompleteStream(ctx.Context, req, ctx.Handler)
+	} else {
+		resp, err = provider.Complete(ctx.Context, req)
 	}
+
+	if err != nil {
+		result.Error = fmt.Errorf("LLM request failed: %w", err)
+		ctx.EmitProgress(ProgressEvent{
+			Type:    ProgressTypeError,
+			Message: err.Error(),
+		})
+		return result, result.Error
+	}
+
+	lastResp = resp
+	// Update token usage
+	result.TokensUsed.Add(resp.Usage)
+
+	// Add assistant message to history
+	assistantMsg := Message{
+		Role:      RoleAssistant,
+		Content:   resp.Content,
+		ToolCalls: resp.ToolCalls,
+	}
+	messages = append(messages, assistantMsg)
+
+	// If no tool calls, we're done
+	if len(resp.ToolCalls) == 0 || resp.FinishReason != FinishReasonToolUse {
+		result.Output = resp.Content
+		result.Metadata["finish_reason"] = string(resp.FinishReason)
+		break
+	}
+
+	// Execute tool calls
+	for _, tc := range resp.ToolCalls {
+		ctx.EmitProgress(ProgressEvent{
+			Type:    ProgressTypeStep,
+			Message: fmt.Sprintf("Executing tool: %s", tc.Name),
+			Metadata: map[string]string{
+				"tool": tc.Name,
+			},
+		})
+
+		toolResult, err := r.executeToolCall(ctx, tc, resolver)
+		if err != nil {
+			// We report the error back to the LLM so it can try to fix it
+			toolResult = fmt.Sprintf("Error: %v", err)
+		}
+
+		// Add tool result to history
+		messages = append(messages, Message{
+			Role:       RoleTool,
+			Content:    toString(toolResult),
+			ToolCallID: tc.ID,
+		})
+	}
+	resp = lastResp // Restore for metadata access if needed
+}
 
 	// Store the output
 	result.Success = true

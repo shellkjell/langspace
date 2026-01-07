@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,11 +91,7 @@ func (r *Runtime) executePythonScript(ctx *ExecutionContext, code string, params
 	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
 		return "", fmt.Errorf("failed to create temporary script file: %w", err)
 	}
-	defer func() {
-		if err := os.Remove(tmpFile); err != nil {
-			log.Printf("failed to remove temporary script file %s: %v", tmpFile, err)
-		}
-	}()
+	defer os.Remove(tmpFile)
 
 	// Execute python
 	cmd := exec.CommandContext(ctx.Context, "python3", tmpFile)

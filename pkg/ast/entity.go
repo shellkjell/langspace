@@ -143,13 +143,6 @@ type LoopValue struct {
 
 func (l LoopValue) isValue() {}
 
-// Import represents an import directive in a LangSpace file
-type Import struct {
-	Path   string // The path to the file to import
-	Line   int    // Source line
-	Column int    // Source column
-}
-
 // Entity represents a LangSpace entity, which is the fundamental building block
 // of the language. Each entity has a type and a set of properties that define
 // its behavior and characteristics.
