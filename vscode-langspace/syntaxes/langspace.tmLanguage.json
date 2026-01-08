@@ -44,7 +44,7 @@
             "patterns": [
                 {
                     "name": "meta.entity.langspace",
-                    "begin": "\\b(agent|file|tool|intent|pipeline|step|trigger|config|mcp|script|parallel)\\b\\s*(\"[^\"]*\")?\\s*\\{",
+                    "begin": "\\b(agent|file|tool|intent|pipeline|step|trigger|config|mcp|script|parallel|mdap_pipeline)\\b\\s*(\"[^\"]*\")?\\s*\\{",
                     "beginCaptures": {
                         "1": {
                             "name": "keyword.control.entity.langspace"
@@ -90,7 +90,7 @@
             "patterns": [
                 {
                     "name": "meta.nested.langspace",
-                    "begin": "\\b(step|parallel|handler|on_success|on_failure|on_error|on_complete|sandbox|limits|parameters|providers)\\b\\s*(\"[^\"]*\")?\\s*\\{",
+                    "begin": "\\b(step|parallel|handler|on_success|on_failure|on_error|on_complete|sandbox|limits|parameters|providers|microstep|mdap_config|output_schema)\\b\\s*(\"[^\"]*\")?\\s*\\{",
                     "beginCaptures": {
                         "1": {
                             "name": "keyword.control.nested.langspace"
@@ -185,7 +185,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.langspace",
-                    "match": "\\b(agent|file|tool|intent|pipeline|step|trigger|config|mcp|script|parallel|branch|loop|break_if)\\b"
+                    "match": "\\b(agent|file|tool|intent|pipeline|step|trigger|config|mcp|script|parallel|branch|loop|break_if|mdap_pipeline|microstep|mdap_config)\\b"
                 },
                 {
                     "name": "storage.type.langspace",
@@ -193,7 +193,7 @@
                 },
                 {
                     "name": "keyword.other.langspace",
-                    "match": "\\b(required|optional|use|input|output|context|run|event|filter|handler|instruction|model|temperature|tools|scripts|capabilities|timeout|max_memory|language|runtime|code|transport|command|args|description)\\b"
+                    "match": "\\b(required|optional|use|input|output|context|run|event|filter|handler|instruction|model|temperature|tools|scripts|capabilities|timeout|max_memory|language|runtime|code|transport|command|args|description|set|output_schema|on_success|on_failure|on_error|on_complete|sandbox|limits|parameters|providers|strategy|voting_strategy|k|parallel_samples|temperature_first|temperature_subsequent|max_output_tokens|require_format|checkpoint_interval|total_steps|max)\\b"
                 },
                 {
                     "name": "constant.language.langspace",
@@ -221,7 +221,7 @@
             "patterns": [
                 {
                     "name": "meta.function-call.langspace",
-                    "match": "\\b(agent|file|tool|step|mcp|script|env|pipeline|intent|git|github|schedule|cli)\\s*\\(",
+                    "match": "\\b(agent|file|tool|step|mcp|script|env|pipeline|intent|git|github|schedule|cli|microstep|mdap_pipeline)\\s*\\(",
                     "captures": {
                         "1": {
                             "name": "entity.name.function.langspace"
