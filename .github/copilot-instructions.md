@@ -1,183 +1,169 @@
 # LangSpace AI Agent Instructions
 
-LangSpace is a declarative DSL for composing AI agent workflows. The codebase is a Go 1.23+ project implementing a lexer → parser → AST → runtime pipeline.
+LangSpace is a declarative DSL for composing AI agent workflows. This Go 1.23+ project implements a complete pipeline: **Tokenizer → Parser → AST → Workspace → Runtime**.
 
-## Architecture & Philosophy
+## Architecture Overview
 
-**Big Picture:**
 ```
-Input (.ls file) → Tokenizer → Parser → AST Entities → Workspace → Runtime/Execution
-```
-
-**Core Philosophy: Script-First vs Tool-Heavy**
-LangSpace prioritizes "Script-first" agent actions to minimize context window bloat. Instead of multiple tool round-trips, agents write executable code (Python, JS, etc.) that performs complex operations in a single execution.
-
-**Core packages:**
-- [pkg/tokenizer](../pkg/tokenizer/tokenizer.go) - Lexical analysis, produces tokens with line/column tracking
-- [pkg/parser](../pkg/parser/parser.go) - Recursive descent parser, builds AST from tokens
-- [pkg/ast](../pkg/ast/entity.go) - Entity types (`agent`, `file`, `tool`, `intent`, `pipeline`, `script`, `mdap_pipeline`, `microstep`, etc.)
-- [pkg/workspace](../pkg/workspace/workspace.go) - Entity storage with hooks, events, relationships, and snapshots
-- [pkg/validator](../pkg/validator/validator.go) - Type-specific validation rules
-- [pkg/runtime](../pkg/runtime/runtime.go) - LLM integration and workflow execution (Intent/Pipeline)
-- [pkg/slices](../pkg/slices/slices.go) - Generic slice utilities (Filter, Map, Find, etc.)
-
-## Key Patterns
-
-### Entity System (pkg/ast)
-- All entities implement `ast.Entity` interface (Type, Name, Properties, Metadata, Location)
-- Use factory functions: `ast.NewAgentEntity("name")`, `ast.NewFileEntity("name")`, etc.
-- Extensible via `ast.RegisterEntityType()` for custom entity types
-- Value types are sealed: `StringValue`, `NumberValue`, `BoolValue`, `ArrayValue`, `ObjectValue`, `ReferenceValue`, `VariableValue`, `TypedParameterValue`, `PropertyAccessValue`, etc.
-
-### Parser Error Recovery
-```go
-// Use ParseWithRecovery() for graceful error handling
-p := parser.New(input).WithErrorRecovery()
-result := p.ParseWithRecovery()
-// result.Entities contains successfully parsed entities
-// result.Errors contains ParseError with Line/Column/Message
+.ls file → pkg/tokenizer → pkg/parser → pkg/ast (Entities) → pkg/workspace → pkg/runtime
+                                                                    ↓
+                                                            LLM Providers (Anthropic/OpenAI)
 ```
 
-### Workspace Hooks, Events & Validation
-```go
-ws := workspace.New()
-// Lifecycle hooks
-ws.OnEntityEvent(workspace.HookBeforeAdd, func(e ast.Entity) error {
-    return nil // Return error to cancel
-})
-// Custom validators
-ws.RegisterEntityValidator("agent", func(e ast.Entity) error {
-    if _, ok := e.GetProperty("model"); !ok {
-        return fmt.Errorf("missing model")
-    }
-    return nil
-})
-// Global events
-ws.OnEvent(func(event workspace.Event) {
-    // React to EventEntityAdded, etc.
-})
-```
-
-### Runtime Execution (pkg/runtime)
-- `Runtime` coordinates `LLMProvider`s and `ExecutionContext`.
-- `Resolver` handles variable interpolation and property access during execution.
-- `StreamHandler` manages real-time output (chunks and progress events).
-- Execution flow: `Execute` → `executeIntent` or `executePipeline` → `LLMProvider.Complete`.
-
-### Generic Slice Utilities (pkg/slices)
-**CRITICAL:** Prefer these over manual loops for readability and consistency:
-```go
-slices.Filter(entities, func(e ast.Entity) bool { return e.Type() == "agent" })
-slices.Find(entities, predicate)
-slices.Map(entities, transform)
-slices.Any(entities, predicate)
-slices.GroupBy(entities, keyFunc)
-```
+**Core Packages:**
+| Package | Purpose | Key File |
+|---------|---------|----------|
+| `pkg/tokenizer` | Lexical analysis with line/column tracking | [tokenizer.go](../pkg/tokenizer/tokenizer.go) |
+| `pkg/parser` | Recursive descent parser, builds AST | [parser.go](../pkg/parser/parser.go) |
+| `pkg/ast` | Entity types & sealed Value interface | [entity.go](../pkg/ast/entity.go) |
+| `pkg/workspace` | Entity storage, hooks, events, snapshots | [workspace.go](../pkg/workspace/workspace.go) |
+| `pkg/runtime` | LLM integration, execution orchestration | [runtime.go](../pkg/runtime/runtime.go) |
+| `pkg/validator` | Type-specific validation rules | [validator.go](../pkg/validator/validator.go) |
+| `pkg/slices` | Generic slice utilities (prefer over manual loops) | [slices.go](../pkg/slices/slices.go) |
 
 ## Development Commands
 
 ```bash
 make test          # Run all tests with race detector
 make lint          # Run golangci-lint
-make coverage      # Generate coverage report (coverage.out)
+make coverage      # Generate coverage.out report
 make benchmark     # Run benchmarks with memory stats
+make local-ci      # Run CI suite locally via `act`
 go test -v ./pkg/parser/...  # Test specific package
 ```
 
-## Testing Patterns
+## Key Patterns & Conventions
 
-- Table-driven tests with `checkFirst` callback pattern (see [parser_test.go](../pkg/parser/parser_test.go))
-- Benchmark functions for performance-critical paths
-- Test names: `TestParser_Parse_BlockSyntax`, `TestParser_TypedParameters`
-- Error cases test specific error substrings
+### Entity System
+All entities implement `ast.Entity` interface. Use factory functions:
+```go
+agent := ast.NewAgentEntity("reviewer")      // Creates *AgentEntity
+file := ast.NewFileEntity("config")          // Creates *FileEntity
+pipeline := ast.NewPipelineEntity("review")  // Creates *PipelineEntity with Steps slice
+```
 
+Extend via registry: `ast.RegisterEntityType("custom", factory)`.
+
+### Sealed Value Types
+The `ast.Value` interface is sealed via unexported marker method. Valid types:
+`StringValue`, `NumberValue`, `BoolValue`, `ArrayValue`, `ObjectValue`, `ReferenceValue`, `VariableValue`, `TypedParameterValue`, `PropertyAccessValue`, `MethodCallValue`, `FunctionCallValue`, `InferredValue`, `BranchValue`, `LoopValue`, `NestedEntityValue`.
+
+### Parser Error Recovery
+```go
+p := parser.New(input).WithErrorRecovery()
+result := p.ParseWithRecovery()
+// result.Entities - successfully parsed
+// result.Errors - []ParseError with Line/Column/Message
+```
+
+### Workspace Lifecycle Hooks
+```go
+ws := workspace.New()
+ws.OnEntityEvent(workspace.HookBeforeAdd, func(e ast.Entity) error {
+    return nil // Return error to cancel operation
+})
+ws.RegisterEntityValidator("agent", func(e ast.Entity) error {
+    if _, ok := e.GetProperty("model"); !ok {
+        return fmt.Errorf("agent requires 'model' property")
+    }
+    return nil
+})
+```
+
+### Use pkg/slices for Collection Operations
+**CRITICAL:** Prefer these over manual loops:
+```go
+slices.Filter(entities, func(e ast.Entity) bool { return e.Type() == "agent" })
+slices.Find(entities, predicate)   // Returns (entity, bool)
+slices.FindIndex(entities, pred)   // Returns int (-1 if not found)
+slices.Map(entities, transform)
+slices.GroupBy(entities, keyFunc)
+```
+
+### Runtime Execution Flow
+`Runtime.Execute()` → dispatches by entity type → `executeIntent`/`executePipeline`/`executeMDAPPipeline` → `LLMProvider.Complete()` with tool loop.
+
+Providers implement `LLMProvider` interface: `Complete()`, `CompleteStream()`, `ListModels()`.
+
+## Testing Conventions
+
+**Table-driven tests with `checkFirst` callback pattern:**
 ```go
 {
-    name:       "simple_agent",
-    input:      `agent "reviewer" { model: "gpt-4o" }`,
-    wantCount:  1,
+    name:      "pipeline_with_steps",
+    input:     `pipeline "review" { step "analyze" { use: agent("a") } }`,
+    wantCount: 1,
     checkFirst: func(t *testing.T, e ast.Entity) {
-        // Validate parsed entity
+        pipeline := e.(*ast.PipelineEntity)
+        if len(pipeline.Steps) != 1 { t.Error("expected 1 step") }
     },
 }
 ```
 
-## LangSpace Syntax Quick Reference
+- Test file naming: `*_test.go` alongside source
+- Test function naming: `TestParser_Parse_BlockSyntax`, `TestWorkspace_AddEntity`
+- Error tests: check specific substrings with `strings.Contains`
+- Benchmarks: `BenchmarkParser_Parse_Large` for performance-critical paths
+
+## LangSpace Syntax Reference
 
 ```langspace
-# Agents - LLM-powered actors
-agent "name" {
+# Agents - LLM-powered actors (required: model)
+agent "reviewer" {
   model: "claude-sonnet-4-20250514"
   temperature: 0.7
-  instruction: ```multiline text```
-  tools: [tool_a, tool_b]
+  instruction: ```multiline prompt```
+  tools: [read_file, write_file]
 }
 
-# Files - static data
-file "name" {
-  path: "./path/to/file"   # OR
-  contents: ```inline content```
-}
+# Files - static data (required: path OR contents)
+file "prompt" { contents: ```inline content``` }
+file "config" { path: "./config.json" }
 
 # Pipelines - multi-step workflows
-pipeline "name" {
-  step "step1" { use: agent("name") input: $input }
-  step "step2" { use: agent("other") input: step("step1").output }
-  output: step("step2").output
+pipeline "analyze" {
+  step "s1" { use: agent("a") input: $input }
+  step "s2" { use: agent("b") input: step("s1").output }
+  output: step("s2").output
 }
 
-# Scripts - code-first actions (context efficient)
-script "db-update" {
-  language: "python"
-  code: ```python ... ```
-  capabilities: [database]
-}
-
-# MDAP Pipelines - reliable long-horizon tasks
-mdap_pipeline "solve-hanoi" {
+# MDAP Pipelines - reliable long-horizon tasks with voting
+mdap_pipeline "solve-task" {
   strategy: file("strategy")
-  mdap_config {
-    voting_strategy: "first-to-ahead-by-k"
-    k: 3
-  }
-  microstep "move" {
-    use: agent("solver")
-  }
+  mdap_config { voting_strategy: "first-to-ahead-by-k" k: 3 }
+  microstep "step" { use: agent("solver") }
 }
 
 # References: agent("x"), file("y"), step("z").output
-# Variables: $input, $code
+# Variables: $input, $current_state
 # Property access: params.location, config.defaults.timeout
+# Typed params: query: string required "description"
 ```
 
-## Entity Type Properties
+## Entity Validation Rules
 
 | Type | Required Properties |
 |------|---------------------|
 | `agent` | `model` |
 | `file` | `path` OR `contents` |
 | `tool` | `command` OR `function` |
-| `intent` | `use` (agent reference) |
+| `intent` | `use` (agent ref) |
 | `step` | `use` |
-| `trigger` | `event` OR `schedule` |
 | `mcp` | `command` |
 | `script` | `language`, `code` OR `path` |
 | `mdap_pipeline` | `strategy` |
-| `microstep` | `use` (agent reference) |
-| `mdap_config` | (no required properties) |
+| `microstep` | `use` (agent ref) |
 
-## Code Style
+## Code Style Requirements
 
-- Document all exported functions/types
-- Use functional options pattern: `WithConfig()`, `WithValidator()`
-- Errors include context: `fmt.Errorf("entity not found: %s %q", entityType, entityName)`
-- Concurrent-safe workspace operations use `sync.RWMutex`
-- Return copies from getters to prevent external mutation
+- Document all exported functions/types with godoc comments
+- Use functional options: `WithConfig()`, `WithValidator()`, `WithVersioning()`
+- Errors include context: `fmt.Errorf("entity not found: %s %q", typ, name)`
+- Thread safety: Workspace uses `sync.RWMutex`, return copies from getters
+- CLI pattern: Separate `run()` function from `main()` for testability (see [cmd/langspace/main.go](../cmd/langspace/main.go))
 
-## Current Limitations (Not Yet Implemented)
+## Examples
 
-- TypeScript compilation target (Python works)
-- Cloud-hosted execution
-- Advanced debugging visualization
-
-See [examples/](../examples/) for syntax demos and [ROADMAP.md](../ROADMAP.md) for planned features.
+- Basic examples: [examples/](../examples/) (01-09 cover core features)
+- Advanced MDAP: [examples/advanced/09-tower-of-hanoi-mdap.ls](../examples/advanced/09-tower-of-hanoi-mdap.ls)
+- See [ROADMAP.md](../ROADMAP.md) for implementation status
