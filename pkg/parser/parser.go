@@ -476,7 +476,15 @@ func (p *Parser) parsePrimaryValue() (ast.Value, *ParseError) {
 		// 4. A typed block: http { ... } or shell { ... }
 		// 5. A simple identifier used as a value
 		// 6. A function call: write_file("path", data), print("msg")
+		// 7. auto/infer keywords: auto, auto(min: 2, max: 5), infer
 		nextTok := p.peek(1)
+
+		// Check for auto/infer keywords FIRST (before function call check)
+		// because auto(min: 2, max: 5) looks like a function call but isn't
+		if tok.Value == "auto" || tok.Value == "infer" {
+			return p.parseInferredValue(tok.Value)
+		}
+
 		if nextTok.Type == tokenizer.TokenTypeLeftParen {
 			// Check if this is a known entity type (reference) or a general function call
 			if p.isEntityType(tok.Value) {
@@ -738,6 +746,66 @@ func (p *Parser) parseInlineEnum() (ast.Value, *ParseError) {
 		ParamType:  "enum",
 		EnumValues: values,
 	}, nil
+}
+
+// parseInferredValue parses an inferred value: auto, auto(min: 2, max: 5), infer
+// This enables runtime inference of MDAP configuration parameters.
+func (p *Parser) parseInferredValue(inferType string) (ast.Value, *ParseError) {
+	p.advance() // consume "auto" or "infer"
+
+	result := ast.InferredValue{
+		InferenceType: inferType,
+		Constraints:   make(map[string]ast.Value),
+	}
+
+	// Check for optional constraints: auto(min: 2, max: 5)
+	if p.current().Type == tokenizer.TokenTypeLeftParen {
+		p.advance() // consume (
+
+		for p.current().Type != tokenizer.TokenTypeRightParen {
+			if p.pos >= len(p.tokens) {
+				return nil, &ParseError{
+					Line:    0,
+					Column:  0,
+					Message: "unclosed auto() constraints",
+				}
+			}
+
+			// Parse constraint: key: value
+			keyTok := p.current()
+			if keyTok.Type != tokenizer.TokenTypeIdentifier {
+				return nil, &ParseError{
+					Line:    keyTok.Line,
+					Column:  keyTok.Column,
+					Message: "expected constraint name in auto()",
+				}
+			}
+			key := keyTok.Value
+			p.advance()
+
+			if _, err := p.expect(tokenizer.TokenTypeColon); err != nil {
+				return nil, err
+			}
+
+			val, err := p.parsePrimaryValue()
+			if err != nil {
+				return nil, err
+			}
+
+			result.Constraints[key] = val
+
+			// Optional comma
+			if p.current().Type == tokenizer.TokenTypeComma {
+				p.advance()
+			}
+		}
+
+		if _, err := p.expect(tokenizer.TokenTypeRightParen); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 // parseTypedBlock parses a typed block: identifier { ... } (e.g., http { method: "GET" })

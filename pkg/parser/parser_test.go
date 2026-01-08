@@ -974,3 +974,125 @@ func TestParser_PropertyAccess(t *testing.T) {
 		})
 	}
 }
+
+// TestParser_InferredValues tests parsing of auto/infer keywords for runtime inference
+func TestParser_InferredValues(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		checkFirst func(t *testing.T, e ast.Entity)
+	}{
+		{
+			name: "simple_auto",
+			input: `config {
+				k: auto
+			}`,
+			checkFirst: func(t *testing.T, e ast.Entity) {
+				kProp, ok := e.GetProperty("k")
+				if !ok {
+					t.Fatal("expected k property")
+				}
+				inf, ok := kProp.(ast.InferredValue)
+				if !ok {
+					t.Fatalf("expected InferredValue, got %T", kProp)
+				}
+				if inf.InferenceType != "auto" {
+					t.Errorf("InferenceType = %q, want auto", inf.InferenceType)
+				}
+				if len(inf.Constraints) != 0 {
+					t.Errorf("Constraints = %v, want empty", inf.Constraints)
+				}
+			},
+		},
+		{
+			name: "auto_with_constraints",
+			input: `config {
+				k: auto(min: 2, max: 5)
+			}`,
+			checkFirst: func(t *testing.T, e ast.Entity) {
+				kProp, _ := e.GetProperty("k")
+				inf := kProp.(ast.InferredValue)
+				if inf.InferenceType != "auto" {
+					t.Errorf("InferenceType = %q, want auto", inf.InferenceType)
+				}
+				if len(inf.Constraints) != 2 {
+					t.Errorf("Constraints has %d entries, want 2", len(inf.Constraints))
+				}
+				minVal, hasMin := inf.Constraints["min"]
+				if !hasMin {
+					t.Fatal("expected min constraint")
+				}
+				if nv, ok := minVal.(ast.NumberValue); !ok || nv.Value != 2 {
+					t.Errorf("min = %v, want 2", minVal)
+				}
+				maxVal, hasMax := inf.Constraints["max"]
+				if !hasMax {
+					t.Fatal("expected max constraint")
+				}
+				if nv, ok := maxVal.(ast.NumberValue); !ok || nv.Value != 5 {
+					t.Errorf("max = %v, want 5", maxVal)
+				}
+			},
+		},
+		{
+			name: "infer_keyword",
+			input: `config {
+				total_steps: infer
+			}`,
+			checkFirst: func(t *testing.T, e ast.Entity) {
+				stepsProp, _ := e.GetProperty("total_steps")
+				inf := stepsProp.(ast.InferredValue)
+				if inf.InferenceType != "infer" {
+					t.Errorf("InferenceType = %q, want infer", inf.InferenceType)
+				}
+			},
+		},
+		{
+			name: "mdap_config_with_auto",
+			input: `mdap_pipeline "migration" {
+				strategy: file("strategy")
+				mdap_config {
+					voting_strategy: "first-to-ahead-by-k"
+					k: auto(min: 2, max: 5)
+				}
+				microstep "transform" {
+					use: agent("transformer")
+				}
+			}`,
+			checkFirst: func(t *testing.T, e ast.Entity) {
+				pipeline, ok := e.(*ast.MDAPPipelineEntity)
+				if !ok {
+					t.Fatalf("expected *ast.MDAPPipelineEntity, got %T", e)
+				}
+				if pipeline.Config == nil {
+					t.Fatal("expected Config to be set")
+				}
+				kProp, ok := pipeline.Config.GetProperty("k")
+				if !ok {
+					t.Fatal("expected k property in config")
+				}
+				inf, ok := kProp.(ast.InferredValue)
+				if !ok {
+					t.Fatalf("expected InferredValue, got %T", kProp)
+				}
+				if len(inf.Constraints) != 2 {
+					t.Errorf("Constraints has %d entries, want 2", len(inf.Constraints))
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := New(tt.input)
+			got, err := p.Parse()
+			if err != nil {
+				t.Fatalf("Parser.Parse() error = %v", err)
+			}
+			if len(got) != 1 {
+				t.Fatalf("got %d entities, want 1", len(got))
+			}
+			tt.checkFirst(t, got[0])
+		})
+	}
+}

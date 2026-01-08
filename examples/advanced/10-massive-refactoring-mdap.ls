@@ -11,6 +11,18 @@
 # - Maximal Decomposition: Each microstep handles exactly ONE file or ONE function
 # - First-to-ahead-by-k Voting: Multiple samples vote on the diff to ensure correctness
 # - Red-Flagging: Reject changes that break syntax (rejection sampling)
+#
+# New Feature: Runtime Inference with `auto`
+# ==========================================
+# The `auto` keyword enables dynamic inference of MDAP configuration parameters
+# based on codebase analysis. This is useful when:
+# - You don't know the task complexity upfront
+# - You want the system to optimize parameters based on the codebase
+# - You want bounds without specifying exact values
+#
+# Syntax:
+#   k: auto                     # Fully automatic inference
+#   k: auto(min: 2, max: 5)    # Constrained inference with bounds
 
 # =============================================================================
 # Agent Definition
@@ -65,7 +77,10 @@ mdap_pipeline "massive-api-migration" {
 
     mdap_config {
         voting_strategy: "first-to-ahead-by-k"
-        k: 3                      # High reliability: need a 3-vote lead
+        # Use auto-inference with bounds for k value
+        # The runtime will analyze the codebase complexity and choose an optimal k
+        # within the specified range. Higher k = more reliability, lower speed.
+        k: auto(min: 2, max: 5)
         parallel_samples: 5       # Sample more aggressively for code tasks
         temperature_first: 0.0
         temperature_subsequent: 0.2
@@ -73,8 +88,9 @@ mdap_pipeline "massive-api-migration" {
         require_format: true
     }
 
-    # In a real "Million Step" task, this would be dynamic or set to N files
-    total_steps: 1000
+    # Use `infer` to dynamically determine total_steps from codebase
+    # The runtime will use list_files() and count_matches() to estimate
+    total_steps: infer
 
     # Input: List of files and their content (simplified for example)
     input: {
@@ -109,7 +125,7 @@ mdap_pipeline "massive-api-migration" {
             # Reject if the diff contains 'LegacyDate' (missed transformation)
             contains: "LegacyDate"
             # Reject if syntax looks broken (simple heuristic or tool call)
-            regex: ".*<<<<<.*" 
+            regex: ".*<<<<<.*"
         }
     }
 
@@ -127,9 +143,9 @@ intent "start-migration" {
     input: {
         # Real-world usage would likely use a glob or file search tool
         target_files: [
-            { 
-              path: "src/utils/logger.ts", 
-              content: "import { LegacyDate } from './lib';\nconst now = LegacyDate.now();" 
+            {
+              path: "src/utils/logger.ts",
+              content: "import { LegacyDate } from './lib';\nconst now = LegacyDate.now();"
             }
         ]
     }

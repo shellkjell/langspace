@@ -61,7 +61,7 @@ mdap_pipeline "global-security-audit" {
 
     microstep "audit-module" {
         use: agent("security-auditor")
-        
+
         context: {
             module_name: $item.path
             source: $item.content

@@ -143,6 +143,18 @@ type LoopValue struct {
 
 func (l LoopValue) isValue() {}
 
+// InferredValue represents a value that should be determined at runtime.
+// Used with the `auto` keyword: k: auto or k: auto(min: 2, max: 5)
+// The runtime planner will analyze the task and determine optimal values.
+type InferredValue struct {
+	// InferenceType is the type of inference: "auto" or "infer"
+	InferenceType string
+	// Constraints are optional bounds: min, max, prefer, etc.
+	Constraints map[string]Value
+}
+
+func (i InferredValue) isValue() {}
+
 // Entity represents a LangSpace entity, which is the fundamental building block
 // of the language. Each entity has a type and a set of properties that define
 // its behavior and characteristics.

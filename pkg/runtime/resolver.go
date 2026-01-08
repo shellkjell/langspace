@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/shellkjell/langspace/pkg/ast"
@@ -651,6 +652,47 @@ func (r *Resolver) resolveFunctionCall(fc ast.FunctionCallValue) (interface{}, e
 		}
 		return nil, fmt.Errorf("step() requires a step name argument")
 
+	// Codebase analysis functions for MDAP planning
+	case "list_files":
+		// list_files("src/**/*.go") - returns array of file paths matching pattern
+		if len(args) > 0 {
+			pattern := toString(args[0])
+			return r.listFiles(pattern)
+		}
+		return nil, fmt.Errorf("list_files() requires a pattern argument")
+
+	case "count_matches":
+		// count_matches("pattern", "src/**/*.go") - count regex matches across files
+		if len(args) >= 2 {
+			pattern := toString(args[0])
+			filePattern := toString(args[1])
+			return r.countMatches(pattern, filePattern)
+		}
+		return nil, fmt.Errorf("count_matches() requires pattern and file pattern arguments")
+
+	case "grep":
+		// grep("pattern", "src/**/*.go") - returns matches with context
+		if len(args) >= 2 {
+			pattern := toString(args[0])
+			filePattern := toString(args[1])
+			contextLines := 2
+			if len(args) >= 3 {
+				if cl, ok := toInt(args[2]); ok {
+					contextLines = cl
+				}
+			}
+			return r.grepFiles(pattern, filePattern, contextLines)
+		}
+		return nil, fmt.Errorf("grep() requires pattern and file pattern arguments")
+
+	case "analyze_codebase":
+		// analyze_codebase("src/**/*.go") - returns summary: file count, total lines, etc.
+		if len(args) > 0 {
+			pattern := toString(args[0])
+			return r.analyzeCodebase(pattern)
+		}
+		return nil, fmt.Errorf("analyze_codebase() requires a pattern argument")
+
 	default:
 		return nil, fmt.Errorf("unknown function: %s", fc.Function)
 	}
@@ -962,4 +1004,161 @@ func (wr *WorkspaceResolver) GetConfig() (ast.Entity, error) {
 		return nil, fmt.Errorf("no config entity found")
 	}
 	return entities[0], nil
+}
+
+// =============================================================================
+// Codebase Analysis Functions (for MDAP runtime inference)
+// =============================================================================
+
+// listFiles returns file paths matching a glob pattern.
+func (r *Resolver) listFiles(pattern string) ([]string, error) {
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid glob pattern %s: %w", pattern, err)
+	}
+
+	// Filter out directories
+	result := make([]string, 0, len(matches))
+	for _, path := range matches {
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			result = append(result, path)
+		}
+	}
+
+	return result, nil
+}
+
+// GrepMatch represents a single grep match with context.
+type GrepMatch struct {
+	File       string   `json:"file"`
+	Line       int      `json:"line"`
+	Content    string   `json:"content"`
+	Context    []string `json:"context,omitempty"`
+	MatchCount int      `json:"match_count,omitempty"`
+}
+
+// countMatches counts regex matches across files matching a pattern.
+func (r *Resolver) countMatches(regexPattern, filePattern string) (int, error) {
+	re, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return 0, fmt.Errorf("invalid regex pattern: %w", err)
+	}
+
+	files, err := r.listFiles(filePattern)
+	if err != nil {
+		return 0, err
+	}
+
+	totalCount := 0
+	for _, path := range files {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		matches := re.FindAllString(string(content), -1)
+		totalCount += len(matches)
+	}
+
+	return totalCount, nil
+}
+
+// grepFiles searches for a pattern across files and returns matches with context.
+func (r *Resolver) grepFiles(regexPattern, filePattern string, contextLines int) ([]GrepMatch, error) {
+	re, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid regex pattern: %w", err)
+	}
+
+	files, err := r.listFiles(filePattern)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []GrepMatch
+	for _, path := range files {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		lines := strings.Split(string(content), "\n")
+		for i, line := range lines {
+			if re.MatchString(line) {
+				match := GrepMatch{
+					File:    path,
+					Line:    i + 1,
+					Content: line,
+				}
+
+				// Add context lines
+				if contextLines > 0 {
+					start := i - contextLines
+					if start < 0 {
+						start = 0
+					}
+					end := i + contextLines + 1
+					if end > len(lines) {
+						end = len(lines)
+					}
+					match.Context = lines[start:end]
+				}
+
+				results = append(results, match)
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// CodebaseAnalysis contains summary statistics about a codebase.
+type CodebaseAnalysis struct {
+	FileCount      int            `json:"file_count"`
+	TotalLines     int            `json:"total_lines"`
+	TotalBytes     int64          `json:"total_bytes"`
+	FilesByExt     map[string]int `json:"files_by_ext"`
+	EstimatedSteps int            `json:"estimated_steps"`
+}
+
+// analyzeCodebase returns summary statistics about files matching a pattern.
+func (r *Resolver) analyzeCodebase(filePattern string) (*CodebaseAnalysis, error) {
+	files, err := r.listFiles(filePattern)
+	if err != nil {
+		return nil, err
+	}
+
+	analysis := &CodebaseAnalysis{
+		FilesByExt: make(map[string]int),
+	}
+
+	for _, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		analysis.FileCount++
+		analysis.TotalBytes += info.Size()
+		analysis.TotalLines += strings.Count(string(content), "\n") + 1
+
+		ext := filepath.Ext(path)
+		if ext == "" {
+			ext = "(no ext)"
+		}
+		analysis.FilesByExt[ext]++
+	}
+
+	// Simple heuristic: estimate ~1 step per file for transformations
+	analysis.EstimatedSteps = analysis.FileCount
+
+	return analysis, nil
 }

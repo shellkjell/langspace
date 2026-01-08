@@ -131,8 +131,11 @@ func (r *Runtime) executeMDAPPipeline(ctx *ExecutionContext, entity ast.Entity) 
 	}
 	startTime := time.Now()
 
-	// Load MDAP config
-	config := r.loadMDAPConfig(pipeline)
+	// Create resolver early for config resolution
+	resolver := NewResolver(ctx)
+
+	// Load MDAP config (uses resolver for variable/auto resolution)
+	config := r.loadMDAPConfig(ctx, pipeline, resolver)
 
 	// Get the strategy from the pipeline
 	strategy := r.resolveStrategy(pipeline)
@@ -148,8 +151,6 @@ func (r *Runtime) executeMDAPPipeline(ctx *ExecutionContext, entity ast.Entity) 
 		Type:    ProgressTypeStart,
 		Message: fmt.Sprintf("Executing MDAP pipeline: %s with %d microsteps", pipeline.Name(), len(pipeline.Microsteps)),
 	})
-
-	resolver := NewResolver(ctx)
 
 	// Check for generate_steps function
 	totalSteps := len(pipeline.Microsteps)
@@ -552,7 +553,8 @@ func (r *Runtime) parseHanoiResponse(content string) (action string, nextState i
 }
 
 // loadMDAPConfig extracts MDAP configuration from pipeline entity.
-func (r *Runtime) loadMDAPConfig(pipeline *ast.MDAPPipelineEntity) *MDAPConfig {
+// It uses the Resolver to support variable references and InferredValues.
+func (r *Runtime) loadMDAPConfig(ctx *ExecutionContext, pipeline *ast.MDAPPipelineEntity, resolver *Resolver) *MDAPConfig {
 	config := DefaultMDAPConfig()
 
 	if pipeline.Config == nil {
@@ -562,57 +564,136 @@ func (r *Runtime) loadMDAPConfig(pipeline *ast.MDAPPipelineEntity) *MDAPConfig {
 	cfg := pipeline.Config
 
 	if strategyProp, ok := cfg.GetProperty("voting_strategy"); ok {
-		if sv, ok := strategyProp.(ast.StringValue); ok {
-			config.VotingStrategy = sv.Value
-		}
+		config.VotingStrategy = r.resolveToString(strategyProp, resolver, config.VotingStrategy)
 	}
 
 	if kProp, ok := cfg.GetProperty("k"); ok {
-		if nv, ok := kProp.(ast.NumberValue); ok {
-			config.K = int(nv.Value)
-			if config.ParallelSamples == 0 {
-				config.ParallelSamples = config.K
-			}
+		config.K = r.resolveToInt(kProp, resolver, config.K)
+		if config.ParallelSamples == 0 {
+			config.ParallelSamples = config.K
 		}
 	}
 
 	if parallelProp, ok := cfg.GetProperty("parallel_samples"); ok {
-		if nv, ok := parallelProp.(ast.NumberValue); ok {
-			config.ParallelSamples = int(nv.Value)
-		}
+		config.ParallelSamples = r.resolveToInt(parallelProp, resolver, config.ParallelSamples)
 	}
 
 	if tempFirstProp, ok := cfg.GetProperty("temperature_first"); ok {
-		if nv, ok := tempFirstProp.(ast.NumberValue); ok {
-			config.TemperatureFirst = nv.Value
-		}
+		config.TemperatureFirst = r.resolveToFloat(tempFirstProp, resolver, config.TemperatureFirst)
 	}
 
 	if tempSubProp, ok := cfg.GetProperty("temperature_subsequent"); ok {
-		if nv, ok := tempSubProp.(ast.NumberValue); ok {
-			config.TemperatureSubsequent = nv.Value
-		}
+		config.TemperatureSubsequent = r.resolveToFloat(tempSubProp, resolver, config.TemperatureSubsequent)
 	}
 
 	if maxTokensProp, ok := cfg.GetProperty("max_output_tokens"); ok {
-		if nv, ok := maxTokensProp.(ast.NumberValue); ok {
-			config.MaxOutputTokens = int(nv.Value)
-		}
+		config.MaxOutputTokens = r.resolveToInt(maxTokensProp, resolver, config.MaxOutputTokens)
 	}
 
 	if requireFormatProp, ok := cfg.GetProperty("require_format"); ok {
-		if bv, ok := requireFormatProp.(ast.BoolValue); ok {
-			config.RequireFormat = bv.Value
-		}
+		config.RequireFormat = r.resolveToBool(requireFormatProp, resolver, config.RequireFormat)
 	}
 
 	if checkpointProp, ok := cfg.GetProperty("checkpoint_interval"); ok {
-		if nv, ok := checkpointProp.(ast.NumberValue); ok {
-			config.CheckpointInterval = int(nv.Value)
-		}
+		config.CheckpointInterval = r.resolveToInt(checkpointProp, resolver, config.CheckpointInterval)
 	}
 
 	return config
+}
+
+// resolveToString resolves an AST value to a string.
+func (r *Runtime) resolveToString(val ast.Value, resolver *Resolver, defaultVal string) string {
+	// Handle InferredValue
+	if _, ok := val.(ast.InferredValue); ok {
+		// For now, return default - planner integration comes next
+		return defaultVal
+	}
+
+	resolved, err := resolver.Resolve(val)
+	if err != nil {
+		return defaultVal
+	}
+	switch v := resolved.(type) {
+	case string:
+		return v
+	case ast.StringValue:
+		return v.Value
+	default:
+		return defaultVal
+	}
+}
+
+// resolveToInt resolves an AST value to an integer.
+func (r *Runtime) resolveToInt(val ast.Value, resolver *Resolver, defaultVal int) int {
+	// Handle InferredValue with constraints
+	if inf, ok := val.(ast.InferredValue); ok {
+		// For auto with constraints, use min as default
+		if minVal, hasMin := inf.Constraints["min"]; hasMin {
+			if nv, ok := minVal.(ast.NumberValue); ok {
+				return int(nv.Value)
+			}
+		}
+		return defaultVal
+	}
+
+	resolved, err := resolver.Resolve(val)
+	if err != nil {
+		return defaultVal
+	}
+	switch v := resolved.(type) {
+	case int:
+		return v
+	case float64:
+		return int(v)
+	case ast.NumberValue:
+		return int(v.Value)
+	default:
+		return defaultVal
+	}
+}
+
+// resolveToFloat resolves an AST value to a float64.
+func (r *Runtime) resolveToFloat(val ast.Value, resolver *Resolver, defaultVal float64) float64 {
+	// Handle InferredValue
+	if _, ok := val.(ast.InferredValue); ok {
+		return defaultVal
+	}
+
+	resolved, err := resolver.Resolve(val)
+	if err != nil {
+		return defaultVal
+	}
+	switch v := resolved.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case ast.NumberValue:
+		return v.Value
+	default:
+		return defaultVal
+	}
+}
+
+// resolveToBool resolves an AST value to a boolean.
+func (r *Runtime) resolveToBool(val ast.Value, resolver *Resolver, defaultVal bool) bool {
+	// Handle InferredValue
+	if _, ok := val.(ast.InferredValue); ok {
+		return defaultVal
+	}
+
+	resolved, err := resolver.Resolve(val)
+	if err != nil {
+		return defaultVal
+	}
+	switch v := resolved.(type) {
+	case bool:
+		return v
+	case ast.BoolValue:
+		return v.Value
+	default:
+		return defaultVal
+	}
 }
 
 // resolveStrategy extracts the strategy from the pipeline.
