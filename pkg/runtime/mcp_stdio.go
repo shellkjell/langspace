@@ -150,6 +150,6 @@ func (c *StdioMCPClient) ListTools(ctx context.Context) ([]ToolDefinition, error
 }
 
 func (c *StdioMCPClient) Close() error {
-	c.stdin.Close()
+	_ = c.stdin.Close()
 	return c.cmd.Wait()
 }

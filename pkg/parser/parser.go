@@ -201,13 +201,14 @@ func (p *Parser) parseTopLevel() (ast.Entity, *ParseError) {
 
 	// Expect a name (string or identifier)
 	var name string
-	if nameTok.Type == tokenizer.TokenTypeString {
+	switch nameTok.Type {
+	case tokenizer.TokenTypeString:
 		name = nameTok.Value
 		p.advance()
-	} else if nameTok.Type == tokenizer.TokenTypeIdentifier {
+	case tokenizer.TokenTypeIdentifier:
 		name = nameTok.Value
 		p.advance()
-	} else {
+	default:
 		return nil, &ParseError{
 			Line:    nameTok.Line,
 			Column:  nameTok.Column,

@@ -91,7 +91,7 @@ func (r *Runtime) executePythonScript(ctx *ExecutionContext, code string, params
 	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
 		return "", fmt.Errorf("failed to create temporary script file: %w", err)
 	}
-	defer os.Remove(tmpFile)
+	defer func() { _ = os.Remove(tmpFile) }()
 
 	// Execute python
 	cmd := exec.CommandContext(ctx.Context, "python3", tmpFile)

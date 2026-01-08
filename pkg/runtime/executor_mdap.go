@@ -196,7 +196,7 @@ func (r *Runtime) executeMDAPPipeline(ctx *ExecutionContext, entity ast.Entity) 
 		result.StepResults[microstep.Name()] = stepResult
 
 		if err != nil {
-			result.ExecutionResult.Error = fmt.Errorf("microstep %q failed: %w", microstep.Name(), err)
+			result.Error = fmt.Errorf("microstep %q failed: %w", microstep.Name(), err)
 			ctx.EmitProgress(ProgressEvent{
 				Type:    ProgressTypeError,
 				Message: err.Error(),
@@ -211,9 +211,9 @@ func (r *Runtime) executeMDAPPipeline(ctx *ExecutionContext, entity ast.Entity) 
 		ctx.SetStepOutput(microstep.Name(), stepResult.Output)
 	}
 
-	result.ExecutionResult.Success = true
-	result.ExecutionResult.Duration = time.Since(startTime)
-	result.ExecutionResult.Output = state
+	result.Success = true
+	result.Duration = time.Since(startTime)
+	result.Output = state
 
 	// Emit completion
 	ctx.EmitProgress(ProgressEvent{
@@ -756,14 +756,4 @@ func (r *Runtime) generateMicrostep(stepIdx int, state interface{}, strategy str
 	step := ast.NewMicrostepEntity(fmt.Sprintf("step-%d", stepIdx))
 	step.SetProperty("prompt", ast.StringValue{Value: "Determine and execute the next move."})
 	return step
-}
-
-// Add MDAP pipeline execution to the main Execute dispatch
-func (r *Runtime) executeEntityDispatch(ctx *ExecutionContext, entity ast.Entity) (*ExecutionResult, error) {
-	switch entity.Type() {
-	case "mdap_pipeline":
-		return r.executeMDAPPipeline(ctx, entity)
-	default:
-		return nil, fmt.Errorf("executor_mdap: unknown entity type %q", entity.Type())
-	}
 }

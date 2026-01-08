@@ -145,7 +145,8 @@ func (r *Runtime) executeIntent(ctx *ExecutionContext, entity ast.Entity) (*Exec
 				ToolCallID: tc.ID,
 			})
 		}
-		resp = lastResp // Restore for metadata access if needed
+		// Note: lastResp contains the final response with tool calls
+		_ = lastResp // Suppress unused warning
 	}
 
 	// Store the output

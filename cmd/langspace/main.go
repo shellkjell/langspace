@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/shellkjell/langspace/pkg/parser"
@@ -74,12 +73,12 @@ Examples:
 
 For more information, visit: https://github.com/shellkjell/langspace
 `
-	fmt.Fprint(w, help)
+	_, _ = fmt.Fprint(w, help)
 	return nil
 }
 
 func showVersion(w io.Writer) error {
-	fmt.Fprintln(w, "langspace version 0.1.0")
+	_, _ = fmt.Fprintln(w, "langspace version 0.1.0")
 	return nil
 }
 
@@ -227,7 +226,7 @@ func runExecute(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 
 	// Print result
 	if !*noStream {
-		fmt.Fprintln(stdout) // Newline after streaming
+		_, _ = fmt.Fprintln(stdout) // Newline after streaming
 	}
 
 	if *verbose {
@@ -235,7 +234,7 @@ func runExecute(args []string, stdin io.Reader, stdout, stderr io.Writer) error 
 	} else if result.Output != nil && !*noStream {
 		// If not streaming, print the output now
 	} else if result.Output != nil {
-		fmt.Fprintf(stdout, "%v\n", result.Output)
+		_, _ = fmt.Fprintf(stdout, "%v\n", result.Output)
 	}
 
 	if !result.Success {
@@ -264,16 +263,16 @@ func runValidate(args []string, stdin io.Reader, stdout io.Writer) error {
 	result := p.ParseWithRecovery()
 
 	if result.HasErrors() {
-		fmt.Fprintf(stdout, "Validation failed with %d error(s):\n", len(result.Errors))
+		_, _ = fmt.Fprintf(stdout, "Validation failed with %d error(s):\n", len(result.Errors))
 		for i, e := range result.Errors {
-			fmt.Fprintf(stdout, "  %d. %s\n", i+1, e.Error())
+			_, _ = fmt.Fprintf(stdout, "  %d. %s\n", i+1, e.Error())
 		}
 		return fmt.Errorf("validation failed")
 	}
 
-	fmt.Fprintf(stdout, "Validation successful: %d entities parsed\n", len(result.Entities))
+	_, _ = fmt.Fprintf(stdout, "Validation successful: %d entities parsed\n", len(result.Entities))
 	for _, entity := range result.Entities {
-		fmt.Fprintf(stdout, "  - %s %q\n", entity.Type(), entity.Name())
+		_, _ = fmt.Fprintf(stdout, "  - %s %q\n", entity.Type(), entity.Name())
 	}
 
 	return nil
@@ -323,8 +322,8 @@ func runServe(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return fmt.Errorf("failed to start trigger engine: %w", err)
 	}
 
-	fmt.Fprintf(stdout, "LangSpace server listening on port %d...\n", *port)
-	fmt.Fprintf(stdout, "Trigger engine active with %d triggers\n", len(ws.GetEntitiesByType("trigger")))
+	_, _ = fmt.Fprintf(stdout, "LangSpace server listening on port %d...\n", *port)
+	_, _ = fmt.Fprintf(stdout, "Trigger engine active with %d triggers\n", len(ws.GetEntitiesByType("trigger")))
 
 	// Keep running until interrupted
 	select {}
@@ -361,18 +360,18 @@ func readInput(filePath string, stdin io.Reader) (string, error) {
 
 // printStats outputs workspace statistics
 func printStats(w io.Writer, stats workspace.WorkspaceStats, entityCount int) {
-	fmt.Fprintln(w, "Workspace statistics:")
-	fmt.Fprintf(w, "  Number of entities: %d\n", stats.TotalEntities)
-	fmt.Fprintf(w, "  Number of file entities: %d\n", stats.FileEntities)
-	fmt.Fprintf(w, "  Number of agent entities: %d\n", stats.AgentEntities)
-	fmt.Fprintf(w, "  Number of tool entities: %d\n", stats.ToolEntities)
-	fmt.Fprintf(w, "  Number of intent entities: %d\n", stats.IntentEntities)
-	fmt.Fprintf(w, "  Number of pipeline entities: %d\n", stats.PipelineEntities)
-	fmt.Fprintf(w, "  Number of script entities: %d\n", stats.ScriptEntities)
-	fmt.Fprintf(w, "  Number of MDAP pipeline entities: %d\n", stats.MDAPPipelineEntities)
-	fmt.Fprintf(w, "  Number of relationships: %d\n", stats.TotalRelationships)
-	fmt.Fprintf(w, "  Number of hooks: %d\n", stats.TotalHooks)
-	fmt.Fprintf(w, "Successfully processed entities: %d\n", entityCount)
+	_, _ = fmt.Fprintln(w, "Workspace statistics:")
+	_, _ = fmt.Fprintf(w, "  Number of entities: %d\n", stats.TotalEntities)
+	_, _ = fmt.Fprintf(w, "  Number of file entities: %d\n", stats.FileEntities)
+	_, _ = fmt.Fprintf(w, "  Number of agent entities: %d\n", stats.AgentEntities)
+	_, _ = fmt.Fprintf(w, "  Number of tool entities: %d\n", stats.ToolEntities)
+	_, _ = fmt.Fprintf(w, "  Number of intent entities: %d\n", stats.IntentEntities)
+	_, _ = fmt.Fprintf(w, "  Number of pipeline entities: %d\n", stats.PipelineEntities)
+	_, _ = fmt.Fprintf(w, "  Number of script entities: %d\n", stats.ScriptEntities)
+	_, _ = fmt.Fprintf(w, "  Number of MDAP pipeline entities: %d\n", stats.MDAPPipelineEntities)
+	_, _ = fmt.Fprintf(w, "  Number of relationships: %d\n", stats.TotalRelationships)
+	_, _ = fmt.Fprintf(w, "  Number of hooks: %d\n", stats.TotalHooks)
+	_, _ = fmt.Fprintf(w, "Successfully processed entities: %d\n", entityCount)
 }
 
 // outputJSON outputs the workspace as JSON
@@ -382,42 +381,41 @@ func outputJSON(w io.Writer, ws *workspace.Workspace) error {
 
 // printExecutionResult prints detailed execution result
 func printExecutionResult(w io.Writer, result *runtime.ExecutionResult) {
-	fmt.Fprintln(w, "\n--- Execution Result ---")
-	fmt.Fprintf(w, "Success: %v\n", result.Success)
-	fmt.Fprintf(w, "Duration: %s\n", result.Duration)
-	fmt.Fprintf(w, "Tokens Used: %d (input: %d, output: %d)\n",
+	_, _ = fmt.Fprintln(w, "\n--- Execution Result ---")
+	_, _ = fmt.Fprintf(w, "Success: %v\n", result.Success)
+	_, _ = fmt.Fprintf(w, "Duration: %s\n", result.Duration)
+	_, _ = fmt.Fprintf(w, "Tokens Used: %d (input: %d, output: %d)\n",
 		result.TokensUsed.TotalTokens,
 		result.TokensUsed.InputTokens,
 		result.TokensUsed.OutputTokens)
 
 	if len(result.StepResults) > 0 {
-		fmt.Fprintln(w, "\nStep Results:")
+		_, _ = fmt.Fprintln(w, "\nStep Results:")
 		for name, step := range result.StepResults {
-			fmt.Fprintf(w, "  %s: success=%v, duration=%s\n", name, step.Success, step.Duration)
+			_, _ = fmt.Fprintf(w, "  %s: success=%v, duration=%s\n", name, step.Success, step.Duration)
 		}
 	}
 
 	if result.Error != nil {
-		fmt.Fprintf(w, "\nError: %v\n", result.Error)
+		_, _ = fmt.Fprintf(w, "\nError: %v\n", result.Error)
 	}
 
 	if result.Output != nil {
-		fmt.Fprintln(w, "\n--- Output ---")
-		fmt.Fprintf(w, "%v\n", result.Output)
+		_, _ = fmt.Fprintln(w, "\n--- Output ---")
+		_, _ = fmt.Fprintf(w, "%v\n", result.Output)
 	}
 }
 
 // CLIStreamHandler handles streaming output for the CLI
 type CLIStreamHandler struct {
-	stdout      io.Writer
-	stderr      io.Writer
-	verbose     bool
-	chunkBuffer strings.Builder
+	stdout  io.Writer
+	stderr  io.Writer
+	verbose bool
 }
 
 func (h *CLIStreamHandler) OnChunk(chunk runtime.StreamChunk) {
 	if chunk.Type == runtime.ChunkTypeContent {
-		fmt.Fprint(h.stdout, chunk.Content)
+		_, _ = fmt.Fprint(h.stdout, chunk.Content)
 	}
 }
 
@@ -425,13 +423,13 @@ func (h *CLIStreamHandler) OnProgress(event runtime.ProgressEvent) {
 	if h.verbose {
 		switch event.Type {
 		case runtime.ProgressTypeStart:
-			fmt.Fprintf(h.stderr, "🚀 %s\n", event.Message)
+			_, _ = fmt.Fprintf(h.stderr, "🚀 %s\n", event.Message)
 		case runtime.ProgressTypeStep:
-			fmt.Fprintf(h.stderr, "📍 [%d%%] %s\n", event.Progress, event.Message)
+			_, _ = fmt.Fprintf(h.stderr, "📍 [%d%%] %s\n", event.Progress, event.Message)
 		case runtime.ProgressTypeComplete:
-			fmt.Fprintf(h.stderr, "✅ %s\n", event.Message)
+			_, _ = fmt.Fprintf(h.stderr, "✅ %s\n", event.Message)
 		case runtime.ProgressTypeError:
-			fmt.Fprintf(h.stderr, "❌ %s\n", event.Message)
+			_, _ = fmt.Fprintf(h.stderr, "❌ %s\n", event.Message)
 		}
 	}
 }
@@ -441,5 +439,5 @@ func (h *CLIStreamHandler) OnComplete(response *runtime.CompletionResponse) {
 }
 
 func (h *CLIStreamHandler) OnError(err error) {
-	fmt.Fprintf(h.stderr, "Error: %v\n", err)
+	_, _ = fmt.Fprintf(h.stderr, "Error: %v\n", err)
 }
