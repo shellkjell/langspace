@@ -1,7 +1,7 @@
 {
   "name": "langspace",
   "displayName": "LangSpace",
-  "description": "Syntax highlighting and language support for LangSpace (.ls) - declarative AI agent workflows with MDAP pipelines and MCP",
+  "description": "Syntax highlighting for LangSpace (.ls) - declarative AI agent workflows with MDAP pipelines and MCP",
   "version": "0.1.0",
   "publisher": "shellkjell",
   "main": "./out/extension.js",
